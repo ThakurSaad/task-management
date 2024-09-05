@@ -26,7 +26,11 @@ const userSchema = new Schema(
     image: {
       type: String, // This could be a URL or a path to the image
     },
-    verified: Boolean,
+    activationCode: Number,
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true, // Automatically adds `createdAt` and `updatedAt` fields

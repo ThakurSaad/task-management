@@ -2,9 +2,10 @@ const {
   registerService,
   findUserByEmailService,
   updateProfileService,
+  activateUserService,
 } = require("../services/user.services");
 const { generateToken } = require("../utils/genarateToken");
-const path = require("path");
+const sendMail = require("../utils/sendMail");
 
 exports.register = async (req, res) => {
   try {
@@ -16,20 +17,51 @@ exports.register = async (req, res) => {
     }
 
     const filePath = req.file.filename;
-
     req.body.image = filePath;
+
+    const activationCode = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
+    req.body.activationCode = activationCode;
+
+    const userData = { email: req.body.email, activationCode };
+
+    try {
+      sendMail(userData);
+    } catch (error) {
+      throw new Error(500, `${error.message}`);
+    }
 
     const user = await registerService({ ...req.body });
 
     res.status(200).json({
       status: "Success",
-      message: "Registration successful",
-      data: user,
+      message:
+        "Registration successful. Check you email to activate your account",
     });
   } catch (error) {
     res.status(400).json({
       status: "Fail",
       message: "Registration not successful",
+      error: error.message,
+    });
+  }
+};
+
+exports.activateUser = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    const result = await activateUserService(email, code);
+
+    res.status(200).json({
+      status: "Success",
+      message: "Account activated",
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: "Fail",
+      message: "Account activation not successful",
       error: error.message,
     });
   }
@@ -126,6 +158,7 @@ exports.updateProfile = async (req, res) => {
 
 exports.myProfile = async (req, res) => {
   try {
+    console.log("hit");
     const email = req.decoded.email;
 
     const profile = await findUserByEmailService(email);
@@ -133,7 +166,7 @@ exports.myProfile = async (req, res) => {
     if (!profile) {
       return res.status(404).json({
         status: "Not found",
-        message: "No user found",
+        message: "No user found. Check if you have set the token",
       });
     }
 
@@ -145,7 +178,25 @@ exports.myProfile = async (req, res) => {
   } catch (error) {
     res.status(400).json({
       status: "Fail",
-      message: "Profile not found",
+      message: "Profile not found. Check if you have set the token",
+      error: error.message,
+    });
+  }
+};
+
+exports.sendMail = async (req, res) => {
+  try {
+    const userData = req.body;
+    sendMail(userData);
+
+    res.status(200).json({
+      status: "Success",
+      message: "Email sent",
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: "Fail",
+      message: "Email not sent",
       error: error.message,
     });
   }

@@ -19,7 +19,9 @@ const userController = require("../controllers/user.controller");
 const { verifyToken } = require("../middleware/verifyToken");
 
 router.post("/register", upload.single("file"), userController.register);
+router.post("/activate-user", userController.activateUser);
 router.post("/login", userController.login);
+
 router.get("/my-profile", verifyToken, userController.myProfile);
 router.patch(
   "/update-profile",
@@ -27,5 +29,6 @@ router.patch(
   upload.single("file"),
   userController.updateProfile
 );
+router.post("/send-mail", userController.sendMail);
 
 module.exports = router;
