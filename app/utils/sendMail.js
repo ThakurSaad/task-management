@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+require("dotenv").config();
 
 const sendMail = async (userData) => {
   const { email, activationCode } = userData;
@@ -6,8 +7,8 @@ const sendMail = async (userData) => {
   let config = {
     service: "gmail",
     auth: {
-      user: "thakursaad613@gmail.com",
-      pass: "gxev jkge gdas kzvv",
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
     },
   };
 
