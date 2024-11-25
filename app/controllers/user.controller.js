@@ -25,7 +25,7 @@ exports.register = async (req, res) => {
     req.body.activationCode = activationCode;
 
     const userData = { email: req.body.email, activationCode };
-
+    console.log(userData);
     try {
       sendMail(userData);
     } catch (error) {
