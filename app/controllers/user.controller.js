@@ -135,7 +135,7 @@ exports.updateProfile = async (req, res) => {
 
     const result = await updateProfileService(email, req.body);
 
-    if (!result.matchedCount) {
+    if (!result) {
       return res.status(404).json({
         status: "Not found",
         message: "No user found",

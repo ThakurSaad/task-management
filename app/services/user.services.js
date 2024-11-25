@@ -9,13 +9,17 @@ exports.findUserByEmailService = async (email) => {
 };
 
 exports.updateProfileService = async (email, data) => {
-  return await User.updateOne({ email }, data);
+  const user = await User.findOneAndUpdate({ email }, data, {
+    new: true,
+    runValidators: true,
+  });
+  return user;
 };
 
 exports.activateUserService = async (email, code) => {
   const user = await this.findUserByEmailService(email);
 
-  if (user.activationCode === code) {
+  if (user.activationCode === Number(code)) {
     await User.findOneAndUpdate({ email: email }, { isVerified: true });
   } else {
     throw new Error("Invalid activation code");
