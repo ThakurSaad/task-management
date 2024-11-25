@@ -1,7 +1,7 @@
 const Task = require("../models/Task");
 
-exports.createTaskService = async (user) => {
-  return await Task.create(user);
+exports.createTaskService = async (task) => {
+  return await Task.create(task);
 };
 
 exports.findTaskByIdService = async (id) => {
