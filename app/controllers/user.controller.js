@@ -9,14 +9,14 @@ const sendMail = require("../utils/sendMail");
 
 exports.register = async (req, res) => {
   try {
-    if (!req.file) {
+    if (!req.files) {
       return res.status(400).json({
         status: "bad request",
         message: "No file uploaded",
       });
     }
 
-    const filePath = req.file.filename;
+    const filePath = req?.files?.file?.[0]?.path;
     req.body.image = filePath;
 
     const activationCode = Math.floor(
@@ -25,7 +25,7 @@ exports.register = async (req, res) => {
     req.body.activationCode = activationCode;
 
     const userData = { email: req.body.email, activationCode };
-    console.log(userData);
+
     try {
       sendMail(userData);
     } catch (error) {
@@ -40,6 +40,7 @@ exports.register = async (req, res) => {
         "Registration successful. Check you email to activate your account",
     });
   } catch (error) {
+    console.log(error);
     res.status(400).json({
       status: "Fail",
       message: "Registration not successful",
@@ -119,7 +120,9 @@ exports.login = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const email = req.decoded.email;
-    const filePath = req?.file?.filename;
+    const filePath = req?.files?.file[0]?.path;
+
+    console.log("filePath", filePath);
 
     if (filePath) {
       req.body.image = filePath;

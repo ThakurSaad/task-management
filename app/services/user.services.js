@@ -9,6 +9,7 @@ exports.findUserByEmailService = async (email) => {
 };
 
 exports.updateProfileService = async (email, data) => {
+  console.log("updateProfileService");
   const user = await User.findOneAndUpdate({ email }, data, {
     new: true,
     runValidators: true,
