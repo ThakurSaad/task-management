@@ -120,7 +120,7 @@ exports.login = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const email = req.decoded.email;
-    const filePath = req?.files?.file[0]?.path;
+    const filePath = req?.files?.file?.[0]?.path;
 
     console.log("filePath", filePath);
 
