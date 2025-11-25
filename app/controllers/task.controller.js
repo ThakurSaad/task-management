@@ -1,89 +1,76 @@
+
 const {
   createTaskService,
   findTaskByIdService,
   deleteTaskByIdService,
-  findAllTaskByIdCreatorEmail,
+  findAllTaskByCreator,
+  updateTaskByIdService,
 } = require("../services/task.services");
+const asyncHandler = require("../utils/asyncHandler");
+const ApiError = require("../utils/ApiError");
 
-exports.createTask = async (req, res) => {
-  try {
-    const creator_email = req.decoded.email;
-    const createTask = { ...req.body, creator_email };
-    const task = await createTaskService(createTask);
+exports.createTask = asyncHandler(async (req, res) => {
+  const creator = req.decoded._id;
+  const taskData = { ...req.body, creator };
+  const task = await createTaskService(taskData);
 
-    res.status(200).json({
-      status: "Success",
-      message: "Task created successful",
-      data: task,
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: "Fail",
-      message: "Task creation not successful",
-      error: error.message,
-    });
+  res.status(201).json({
+    status: "Success",
+    message: "Task created successfully",
+    data: task,
+  });
+});
+
+exports.getTask = asyncHandler(async (req, res) => {
+  const task = await findTaskByIdService(req.params.id);
+  if (!task) {
+    throw new ApiError(404, "Task not found");
   }
-};
 
-exports.getTask = async (req, res) => {
-  try {
-    const task = await findTaskByIdService(req.params.id);
+  res.status(200).json({
+    status: "Success",
+    message: "Task found",
+    data: task,
+  });
+});
 
-    res.status(200).json({
-      status: "Success",
-      message: "Task found",
-      data: task,
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: "Fail",
-      message: "Task not found",
-      error: error.message,
-    });
+exports.getAllTask = asyncHandler(async (req, res) => {
+  const creatorId = req.decoded._id;
+  const { count, myTasks } = await findAllTaskByCreator(creatorId);
+
+  res.status(200).json({
+    status: "Success",
+    message: "Tasks retrieved successfully",
+    data: { count, myTasks },
+  });
+});
+
+exports.updateTask = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const result = await updateTaskByIdService(id, req.body);
+
+  if (!result) {
+    throw new ApiError(404, "Task not found");
   }
-};
 
-exports.getAllTask = async (req, res) => {
-  try {
-    const email = req.decoded.email;
-    const { count, myTasks } = await findAllTaskByIdCreatorEmail(email);
+  res.status(200).json({
+    status: "Success",
+    message: "Task updated successfully",
+    data: result,
+  });
+});
 
-    res.status(200).json({
-      status: "Success",
-      message: "Your Tasks found",
-      data: { count, myTasks },
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: "Fail",
-      message: "Your Tasks not found",
-      error: error.message,
-    });
+exports.deleteTaskById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const result = await deleteTaskByIdService(id);
+
+  if (!result) {
+    throw new ApiError(404, "Task not found");
   }
-};
 
-exports.deleteTaskById = async (req, res) => {
-  try {
-    const result = await deleteTaskByIdService(req.params.id);
-
-    if (!result) {
-      return res.status(404).json({
-        status: "not found",
-        message: "Task not found",
-        data: result,
-      });
-    }
-
-    res.status(200).json({
-      status: "Success",
-      message: "Task deleted",
-      data: result,
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: "Fail",
-      message: "Task not deleted",
-      error: error.message,
-    });
-  }
-};
+  res.status(200).json({
+    status: "Success",
+    message: "Task deleted successfully",
+    data: result,
+  });
+});

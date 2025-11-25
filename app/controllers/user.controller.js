@@ -6,201 +6,123 @@ const {
 } = require("../services/user.services");
 const { generateToken } = require("../utils/genarateToken");
 const sendMail = require("../utils/sendMail");
+const asyncHandler = require("../utils/asyncHandler");
+const ApiError = require("../utils/ApiError");
 
-exports.register = async (req, res) => {
-  try {
-    if (!req.files) {
-      return res.status(400).json({
-        status: "bad request",
-        message: "No file uploaded",
-      });
-    }
+exports.register = asyncHandler(async (req, res) => {
+  const { email } = req.body;
 
-    const filePath = req?.files?.file?.[0]?.path;
+  const existingUser = await findUserByEmailService(email);
+  if (existingUser) {
+    throw new ApiError(409, "User with this email already exists.");
+  }
+
+  if (!req.files?.file) {
+    throw new ApiError(400, "No file uploaded");
+  }
+
+  const filePath = req.files.file[0].path;
+  req.body.image = filePath;
+
+  const activationCode = Math.floor(100000 + Math.random() * 900000).toString();
+  req.body.activationCode = activationCode;
+
+  await sendMail({ email: req.body.email, activationCode });
+  await registerService({ ...req.body });
+
+  res.status(201).json({
+    status: "Success",
+    message: "Registration successful. Check your email to activate your account",
+  });
+});
+
+exports.activateUser = asyncHandler(async (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code) {
+    throw new ApiError(400, "Email and activation code are required");
+  }
+
+  await activateUserService(email, code);
+
+  res.status(200).json({
+    status: "Success",
+    message: "Account activated successfully",
+  });
+});
+
+exports.login = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    throw new ApiError(401, "Please provide credentials");
+  }
+
+  const user = await findUserByEmailService(email);
+
+  if (!user) {
+    throw new ApiError(404, "No user found. Please create an account");
+  }
+
+  const isPasswordValid = await user.comparePassword(password);
+
+  if (!isPasswordValid) {
+    throw new ApiError(401, "Password is not correct");
+  }
+
+  const token = generateToken(user);
+  const { password: pwd, ...others } = user.toObject();
+
+  res.status(200).json({
+    status: "Success",
+    message: "Successfully logged in",
+    data: {
+      user: others,
+      token,
+    },
+  });
+});
+
+exports.updateProfile = asyncHandler(async (req, res) => {
+  const email = req.decoded.email;
+  const filePath = req.files?.file?.[0]?.path;
+
+  if (filePath) {
     req.body.image = filePath;
-
-    const activationCode = Math.floor(
-      100000 + Math.random() * 900000
-    ).toString();
-    req.body.activationCode = activationCode;
-
-    const userData = { email: req.body.email, activationCode };
-
-    try {
-      sendMail(userData);
-    } catch (error) {
-      throw new Error(500, `${error.message}`);
-    }
-
-    const user = await registerService({ ...req.body });
-
-    res.status(200).json({
-      status: "Success",
-      message:
-        "Registration successful. Check you email to activate your account",
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(400).json({
-      status: "Fail",
-      message: "Registration not successful",
-      error: error.message,
-    });
   }
-};
 
-exports.activateUser = async (req, res) => {
-  try {
-    const { email, code } = req.body;
+  const result = await updateProfileService(email, req.body);
 
-    const result = await activateUserService(email, code);
-
-    res.status(200).json({
-      status: "Success",
-      message: "Account activated",
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: "Fail",
-      message: "Account activation not successful",
-      error: error.message,
-    });
+  if (!result) {
+    throw new ApiError(404, "No user found to update");
   }
-};
 
-exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  res.status(200).json({
+    status: "Success",
+    message: "Profile update successful",
+    data: result,
+  });
+});
 
-    if ((!email, !password)) {
-      return res.status(401).send({
-        status: "Unauthorized",
-        error: "Please provide credentials",
-      });
-    }
+exports.myProfile = asyncHandler(async (req, res) => {
+  const email = req.decoded.email;
+  const profile = await findUserByEmailService(email);
 
-    const user = await findUserByEmailService(email);
-
-    if (!user) {
-      return res.status(404).json({
-        status: "Not found",
-        error: "No user found. Please create an account",
-      });
-    }
-
-    const isPasswordValid = user.password === password;
-
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        status: "Unauthorized",
-        error: "Password is not correct",
-      });
-    }
-
-    const token = generateToken(user);
-    const { password: pwd, ...others } = user.toObject();
-
-    res.status(200).json({
-      status: "Success",
-      message: "Successfully logged in",
-      data: {
-        user: others,
-        token,
-      },
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: "Fail",
-      message: "Login not successful",
-      error: error.message,
-    });
+  if (!profile) {
+    throw new ApiError(404, "No user found. Check if you have set the token");
   }
-};
 
-exports.updateProfile = async (req, res) => {
-  try {
-    const email = req.decoded.email;
-    const filePath = req?.files?.file?.[0]?.path;
+  res.status(200).json({
+    status: "Success",
+    message: "Found profile",
+    data: profile,
+  });
+});
 
-    console.log("filePath", filePath);
+exports.sendMail = asyncHandler(async (req, res) => {
+  await sendMail(req.body);
 
-    if (filePath) {
-      req.body.image = filePath;
-
-      const result = await updateProfileService(email, { ...req.body });
-
-      return res.status(200).json({
-        status: "Success",
-        message: "Profile update successful",
-        data: result,
-      });
-    }
-
-    const result = await updateProfileService(email, req.body);
-
-    if (!result) {
-      return res.status(404).json({
-        status: "Not found",
-        message: "No user found",
-      });
-    }
-
-    res.status(200).json({
-      status: "Success",
-      message: "Profile update successful",
-      data: result,
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: "Fail",
-      message: "Profile update successful",
-      error: error.message,
-    });
-  }
-};
-
-exports.myProfile = async (req, res) => {
-  try {
-    console.log("hit");
-    const email = req.decoded.email;
-
-    const profile = await findUserByEmailService(email);
-
-    if (!profile) {
-      return res.status(404).json({
-        status: "Not found",
-        message: "No user found. Check if you have set the token",
-      });
-    }
-
-    res.status(200).json({
-      status: "Success",
-      message: "Found profile",
-      data: profile,
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: "Fail",
-      message: "Profile not found. Check if you have set the token",
-      error: error.message,
-    });
-  }
-};
-
-exports.sendMail = async (req, res) => {
-  try {
-    const userData = req.body;
-    sendMail(userData);
-
-    res.status(200).json({
-      status: "Success",
-      message: "Email sent",
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: "Fail",
-      message: "Email not sent",
-      error: error.message,
-    });
-  }
-};
+  res.status(200).json({
+    status: "Success",
+    message: "Email sent successfully",
+  });
+});

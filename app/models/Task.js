@@ -12,9 +12,15 @@ const taskSchema = new Schema(
       type: String,
       trim: true,
     },
-    creator_email: {
-      type: String,
+    creator: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
       required: true,
+    },
+    status: {
+      type: String,
+      enum: ["To Do", "In Progress", "Done"],
+      default: "To Do",
     },
   },
   {

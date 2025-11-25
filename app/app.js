@@ -1,6 +1,8 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
+const errorHandler = require("./middleware/errorHandler");
+const ApiError = require("./utils/ApiError");
 
 app.use(express.json());
 app.use(cors());
@@ -21,12 +23,13 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("*", (req, res) => {
-  res.status(404).json({
-    status: "Not found",
-    message: "No route found",
-  });
+// Handle 404 errors for any other route
+app.all("*", (req, res, next) => {
+  next(new ApiError(404, `Can't find ${req.originalUrl} on this server!`));
 });
+
+// Global error handler middleware
+app.use(errorHandler);
 
 connectToDB();
 

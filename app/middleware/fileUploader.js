@@ -1,62 +1,60 @@
 const multer = require("multer");
 const fs = require("fs");
+const ApiError = require("../utils/ApiError");
 
 const allowedMimeTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
 
-const isValidFileType = (mimetype) => allowedMimeTypes.includes(mimetype);
-
 const createDirIfNotExists = (uploadPath) => {
-  if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath, { recursive: true });
+  if (!fs.existsSync(uploadPath)) {
+    fs.mkdirSync(uploadPath, { recursive: true });
+  }
 };
 
-const uploadFile = () => {
-  const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-      let uploadPath = "";
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    let uploadPath = "uploads/images/profile";
+    if (file.fieldname !== "file" && file.fieldname !== "profile_image") {
+      uploadPath = "uploads";
+    }
+    createDirIfNotExists(uploadPath);
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    const name = `${Date.now()}-${file.originalname}`;
+    cb(null, name);
+  },
+});
 
-      if (file.fieldname === "profile_image")
-        uploadPath = "uploads/images/profile";
-      else if (file.fieldname === "file") uploadPath = "uploads/images/profile";
-      else uploadPath = "uploads";
+const fileFilter = (req, file, cb) => {
+  if (allowedMimeTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new ApiError(400, "Invalid file type. Only JPEG, PNG, JPG, and WEBP are allowed."), false);
+  }
+};
 
-      createDirIfNotExists(uploadPath);
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 1024 * 1024 * 5 }, // 5MB file size limit
+}).fields([
+  { name: "profile_image", maxCount: 1 },
+  { name: "file", maxCount: 1 },
+]);
 
-      if (isValidFileType(file.mimetype)) {
-        cb(null, uploadPath);
-      } else {
-        cb(new Error("Invalid file type"));
-      }
-    },
-    filename: function (req, file, cb) {
-      const name = Date.now() + "-" + file.originalname;
-      cb(null, name);
-    },
+// Middleware to handle multer errors
+const uploadFile = () => (req, res, next) => {
+  upload(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      // A Multer error occurred when uploading.
+      return next(new ApiError(400, err.message));
+    } else if (err) {
+      // An unknown error occurred when uploading.
+      return next(err);
+    }
+    // Everything went fine.
+    next();
   });
-
-  const fileFilter = (req, file, cb) => {
-    const allowedFieldNames = ["file", "profile_image"];
-
-    // Allow requests without files (when there's no fieldname)
-    if (!file.fieldname) return cb(null, true);
-
-    // Check if the fieldname is valid
-    if (!allowedFieldNames.includes(file.fieldname))
-      return cb(new Error("Invalid fieldname"));
-
-    // Check if the file type is valid
-    if (isValidFileType(file.mimetype)) return cb(null, true);
-    else return cb(new Error("Invalid file type"));
-  };
-
-  const upload = multer({
-    storage: storage,
-    fileFilter: fileFilter,
-  }).fields([
-    { name: "profile_image", maxCount: 1 },
-    { name: "file", maxCount: 1 },
-  ]);
-
-  return upload;
 };
 
 module.exports = { uploadFile };

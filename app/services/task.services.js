@@ -5,21 +5,25 @@ exports.createTaskService = async (task) => {
 };
 
 exports.findTaskByIdService = async (id) => {
-  return await Task.findById(id);
+  return await Task.findById(id).populate("creator", "email firstName lastName");
 };
 
-exports.findAllTaskByIdCreatorEmail = async (email) => {
-  const myTasks = await Task.find({ creator_email: email });
+exports.findAllTaskByCreator = async (creatorId) => {
+  const myTasks = await Task.find({ creator: creatorId }).populate(
+    "creator",
+    "email firstName lastName"
+  );
   const count = myTasks.length;
   return { myTasks, count };
 };
 
-exports.deleteTaskByIdService = async (id) => {
-  const task = await this.findTaskByIdService(id);
+exports.updateTaskByIdService = async (id, data) => {
+  return await Task.findByIdAndUpdate(id, data, {
+    new: true,
+    runValidators: true,
+  });
+};
 
-  if (!task) {
-    return;
-  } else {
-    return await Task.findByIdAndDelete(id);
-  }
+exports.deleteTaskByIdService = async (id) => {
+  return await Task.findByIdAndDelete(id);
 };
